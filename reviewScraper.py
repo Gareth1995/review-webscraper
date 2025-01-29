@@ -38,6 +38,7 @@ async def scrape_hotel_reviews(url_link, website):
                 print('Last review page number:', last_review_page_num)
 
                 for i in range(1, int(last_review_page_num) + 1):
+                # for i in range(1, 2):
                     
                     print(f'navigating to page {i}')
                     # click button where aria-label = i
@@ -60,25 +61,30 @@ async def scrape_hotel_reviews(url_link, website):
                         if div_html:
                             reviews_html.append(div_html)
 
-                print('Total number of reviews:', len(reviews_html))    
-                # print(reviews_html[0])
+                print('Total number of reviews:', len(reviews_html)) 
 
             # Parse the HTML with BeautifulSoup
             for review in reviews_html:
                 soup = BeautifulSoup(review, 'html.parser')
 
-                # Get the nationality of each reviewer
-                # Find all div elements with the specified class
-                divs = soup.find_all('div', class_="abf093bdfe f45d8e4c32")
+                # Get the nationality, name and review date of each reviewer
+                divs = soup.find_all('div', class_="dc5041d860 c72df67c95") 
 
                 # Extract the alt text from the img tag within each div
                 for div in divs:
-                    img_tag = div.find('img')  # Find the img tag inside the div
+                    # get reviewer country
+                    img_tag = div.select_one('img') 
                     if img_tag and 'alt' in img_tag.attrs:  # Ensure the img tag and 'alt' attribute exist
                         alt_text = img_tag['alt']
                         reviewer_country.append(alt_text)
                     else:
                         print('no alt tag found')
+                    
+                    # get reviewer name
+                    rev_name = div.find('div', class_ = "a3332d346a e6208ee469").get_text()
+                    reviewer_name.append(rev_name)
+
+                    ###################### get date of review ############################
 
                 # get review text from every review card
                 # Find all div elements with the specified class
@@ -101,12 +107,36 @@ async def scrape_hotel_reviews(url_link, website):
                     if combined_review:
                         review_text.append(combined_review)
 
+                    ############## calculate combined review sentiment ################
 
-            # print('Number of countries:', len(reviewer_country))
-            # print(reviewer_country)
+                    # get review score
+                    score_div = soup.find('div', class_="a3b8729ab1 d86cee9b25")
+
+                    if score_div:
+                        # Extract only the direct text content (ignoring nested divs)
+                        rev_score = score_div.find(string=True, recursive=False)
+                        
+                        if rev_score and rev_score.strip():
+                            # print(rev_score.strip())  # Output: 10
+                            review_rating.append(float(rev_score))
+                    else:
+                        print("Score div not found")
+
+            # getting every second element in review_rating list (to remove duplicates)
+            review_rating = review_rating[1::2]             
+            
+
+            print('Number of countries:', len(reviewer_country))
+            print(reviewer_country)
 
             print('Number of reviews:', len(reviewer_country))
             print(review_text)
+
+            print('Number of named reviewers:', len(reviewer_name))
+            print(reviewer_name)
+
+            print('Number of review scores:', len(review_rating))
+            print(review_rating)
 
             await browser.close()
     except Exception as e:
