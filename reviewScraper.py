@@ -1,6 +1,15 @@
+import os
 from playwright.async_api import async_playwright
 import asyncio
 from bs4 import BeautifulSoup
+from transformers import pipeline
+
+from huggingface_hub import login
+login(token="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")
+
+classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
+
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 async def scrape_hotel_reviews(url_link, website):
 
@@ -16,7 +25,7 @@ async def scrape_hotel_reviews(url_link, website):
             reviewer_country = []
             review_rating = []
             review_sentiment = []
-            timestamp = []
+            review_date = []
 
 
             if website == "agoda":
@@ -68,12 +77,13 @@ async def scrape_hotel_reviews(url_link, website):
                 soup = BeautifulSoup(review, 'html.parser')
 
                 # Get the nationality, name and review date of each reviewer
-                divs = soup.find_all('div', class_="dc5041d860 c72df67c95") 
+                # divs = soup.find_all('div', class_="dc5041d860 c72df67c95") 
 
+                divs = soup.find_all('div', class_="b817090550 c44c37515e")
                 # Extract the alt text from the img tag within each div
                 for div in divs:
                     # get reviewer country
-                    img_tag = div.select_one('img') 
+                    img_tag = div.find('div', class_="abf093bdfe f45d8e4c32").find('img')
                     if img_tag and 'alt' in img_tag.attrs:  # Ensure the img tag and 'alt' attribute exist
                         alt_text = img_tag['alt']
                         reviewer_country.append(alt_text)
@@ -84,7 +94,9 @@ async def scrape_hotel_reviews(url_link, website):
                     rev_name = div.find('div', class_ = "a3332d346a e6208ee469").get_text()
                     reviewer_name.append(rev_name)
 
-                    ###################### get date of review ############################
+                    # get date of review
+                    rev_date = div.find('span', class_ = 'abf093bdfe d88f1120c1').get_text()
+                    review_date.append(rev_date)
 
                 # get review text from every review card
                 # Find all div elements with the specified class
@@ -105,9 +117,21 @@ async def scrape_hotel_reviews(url_link, website):
                     
                     # Append to the reviews list if there's any text
                     if combined_review:
-                        review_text.append(combined_review)
 
-                    ############## calculate combined review sentiment ################
+                        ############## calculate combined review sentiment ################
+                        text_emotion_pred = classifier(combined_review)
+                        print(text_emotion_pred)
+
+                        if text_emotion_pred:
+                            # Find the label with the highest score
+                            max_emotion = max(text_emotion_pred[0], key=lambda x: x['score'])
+
+                            # Get the label with the highest score
+                            label_with_highest_score = max_emotion['label']
+
+                            review_text.append(combined_review)
+                            review_sentiment.append(label_with_highest_score)
+                    
 
                     # get review score
                     score_div = soup.find('div', class_="a3b8729ab1 d86cee9b25")
@@ -123,20 +147,28 @@ async def scrape_hotel_reviews(url_link, website):
                         print("Score div not found")
 
             # getting every second element in review_rating list (to remove duplicates)
-            review_rating = review_rating[1::2]             
+            review_rating = review_rating[1::2]
+            review_text = review_text + [None] * (len(reviews_html) - len(review_text)) # NAs to review texts for missing text
+            review_sentiment = review_sentiment + [None] * (len(reviews_html) - len(review_sentiment)) # NAs to review sentiments for missing text   
             
 
-            print('Number of countries:', len(reviewer_country))
-            print(reviewer_country)
+            # print('Number of countries:', len(reviewer_country))
+            # print(reviewer_country)
 
-            print('Number of reviews:', len(reviewer_country))
+            print('Number of reviews:', len(review_text))
             print(review_text)
 
-            print('Number of named reviewers:', len(reviewer_name))
-            print(reviewer_name)
+            # print('Number of named reviewers:', len(reviewer_name))
+            # print(reviewer_name)
 
-            print('Number of review scores:', len(review_rating))
-            print(review_rating)
+            # print('Number of review scores:', len(review_rating))
+            # print(review_rating)
+
+            # print('Number of review timestamps:', len(review_date))
+            # print(review_date)
+
+            print('Number of review sentiments:', len(review_sentiment))
+            print(review_sentiment)
 
             await browser.close()
     except Exception as e:
