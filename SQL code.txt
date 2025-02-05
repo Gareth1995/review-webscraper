@@ -1,0 +1,47 @@
+CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- Enables UUID generation
+
+CREATE TABLE hotels (
+    hotel_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    url TEXT UNIQUE 
+);
+
+CREATE TABLE sources (
+    source_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_name VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE reviews (
+    review_id BIGSERIAL PRIMARY KEY,
+    hotel_id UUID REFERENCES hotels(hotel_id) ON DELETE CASCADE,
+    source_id UUID REFERENCES sources(source_id) ON DELETE CASCADE,
+    review_text TEXT,
+    review_rating FLOAT,
+    reviewer_name VARCHAR(255),
+    review_date VARCHAR(255),
+    sentiment VARCHAR(50),
+    country VARCHAR(100),
+    UNIQUE (hotel_id, source_id, reviewer_name, review_text) 
+);
+
+CREATE TABLE hotel_ratings (
+    rating_id BIGSERIAL PRIMARY KEY,
+    hotel_id UUID NOT NULL,
+    source_id UUID NOT NULL,
+    avg_rating FLOAT,
+    FOREIGN KEY (hotel_id) REFERENCES hotels(hotel_id) ON DELETE CASCADE,
+    FOREIGN KEY (source_id) REFERENCES sources(source_id) ON DELETE CASCADE
+);
+
+
+INSERT INTO hotels (name, location, url)
+VALUES 
+    ('Kwantu Guesthouse 1', 'Cape Town, South Africa', 'https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALW9Yi9BsACAdICJGYzMmY2MGRmLTRlYTQtNGE3Yi1hZDkxLTM2YzE2MGY2YTkyN9gCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=7381465&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738685162&srpvid=27a371319ef80c6e&type=total&ucfs=1&#tab-main')
+
+INSERT INTO sources (source_name)
+VALUES
+	('booking.com');
+
+-- For viewing the reviews table
+SET client_encoding TO 'UTF8'; -- call first before select * from reviews

@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from transformers import pipeline
 import re
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +19,7 @@ classifier = pipeline("text-classification", model="j-hartmann/emotion-english-d
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-async def scrape_hotel_reviews(url_link):
+async def scrape_hotel_reviews(url_link, hotel_id, source_id):
 
     try:
         async with async_playwright() as p:
@@ -29,6 +29,7 @@ async def scrape_hotel_reviews(url_link):
 
             reviews_html = []
             review_text = []
+            review_rating = []
             reviewer_name = []
             reviewer_country = []
             review_sentiment = []
@@ -78,8 +79,14 @@ async def scrape_hotel_reviews(url_link):
         for review in reviews_html:
             soup = BeautifulSoup(review, 'html.parser')
 
+            # get average hotel rating
+            avg_viewer_rating = soup.find('div', class_ = 'ac4a7896c7').get_text()
+            avg_viewer_rating = int(re.search(r'\d+', avg_viewer_rating).group())
+            review_rating.append(avg_viewer_rating)
+
             # Get the nationality, name and review date of each reviewer
             divs = soup.find_all('div', class_="b817090550 c44c37515e")
+
             # Extract the alt text from the img tag within each div
             for div in divs:
                 # get reviewer country
@@ -97,6 +104,8 @@ async def scrape_hotel_reviews(url_link):
                 # get date of review
                 rev_date = div.find('span', class_ = 'abf093bdfe d88f1120c1').get_text()
                 review_date.append(rev_date)
+
+                
 
             # get review text from every review card
             # Find all div elements with the specified class
@@ -158,16 +167,18 @@ async def scrape_hotel_reviews(url_link):
         print('Number of review sentiments:', len(review_sentiment))
         # print(review_sentiment)
 
+        print('Number of review ratings:', len(review_rating))
+
         # Create a DataFrame from the lists
         review_df = pd.DataFrame({
-            'hotel_id': 2,
-            'source_id': 1,
+            'hotel_id': hotel_id,
+            'source_id': source_id,
             'review_text': review_text,
+            'review_rating': review_rating,
             'reviewer_name': reviewer_name,
             'review_date': review_date,
             'sentiment': review_sentiment,
             'country': reviewer_country,
-            
         })
 
         await browser.close()
@@ -178,6 +189,16 @@ async def scrape_hotel_reviews(url_link):
         print(f"An error occurred: {e}")
         return {"error": str(e)}
 
+# def load_to_postgres(df):
+#     # Create a connection string (replace with your actual database details)
+#     db_url = POSTGRES_URI
+
+#     # Create an SQLAlchemy engine
+#     engine = create_engine(db_url)
+
+#     # Write the DataFrame to a PostgreSQL table
+#     df.to_sql('reviews', engine, if_exists='append', index=False)
+
 def load_to_postgres(df):
     # Create a connection string (replace with your actual database details)
     db_url = POSTGRES_URI
@@ -185,11 +206,33 @@ def load_to_postgres(df):
     # Create an SQLAlchemy engine
     engine = create_engine(db_url)
 
-    # Write the DataFrame to a PostgreSQL table
-    df.to_sql('reviews', engine, if_exists='replace', index=False)
+    # Convert the DataFrame to a list of dictionaries (one dictionary per row)
+    data = df.to_dict(orient='records')
+
+    # Construct the insert statement with "ON CONFLICT DO NOTHING"
+    # insert_query = text("""
+    # INSERT INTO reviews (hotel_id, source_id, review_text, review_rating, reviewer_name, review_date, sentiment, country)
+    # VALUES (%(hotel_id)s, %(source_id)s, %(review_text)s, %(review_rating)s, %(reviewer_name)s, %(review_date)s, %(sentiment)s, %(country)s)
+    # ON CONFLICT (hotel_id, source_id, reviewer_name, review_text) DO NOTHING;
+    # """)
+
+    insert_query = text("""
+            INSERT INTO reviews (hotel_id, source_id, review_text, review_rating, reviewer_name, review_date, sentiment, country)
+            VALUES (:hotel_id, :source_id, :review_text, :review_rating, :reviewer_name, :review_date, :sentiment, :country)
+            ON CONFLICT (hotel_id, source_id, reviewer_name, review_text) DO NOTHING;
+        """)
+
+    # Execute the query for each row in the DataFrame
+    with engine.connect() as conn:
+        for row in data:
+            conn.execute(insert_query, row)
+
+    print("Data loaded successfully, duplicate reviews ignored.")
 
 
-review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&"))
+review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&",
+                                             hotel_id='e1ada55f-000c-4991-9527-f72362cb6e80',
+                                             source_id='25e89862-0a2c-4d53-900a-6cb3300c4268'))
 # review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main"))
 print(review_df)
 print('Loading dataframe into database')
