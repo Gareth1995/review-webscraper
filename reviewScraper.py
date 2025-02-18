@@ -49,8 +49,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
             last_review_page_num = await page.locator('div.ab95b25344 > ol > li:last-child').text_content()
             print('Last review page number:', last_review_page_num)
 
-            for i in range(1, int(last_review_page_num) + 1):
-            # for i in range(1, 10):
+            # for i in range(1, int(last_review_page_num) + 1):
+            for i in range(1, 10):
                 
                 print(f'navigating to page {i}')
                 # click button where aria-label = i
@@ -127,11 +127,18 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
                 # Append to the reviews list if there's any text
                 if combined_review:
 
+                    # def convert_to_win1252(text):
+                    #     try:
+                    #         return text.encode('utf-8').decode('windows-1252')
+                    #     except UnicodeEncodeError:
+                    #         return text.encode('utf-8', 'ignore').decode('windows-1252')  # Ignore unconvertible characters
                     def convert_to_win1252(text):
                         try:
-                            return text.encode('utf-8').decode('windows-1252')
+                            # Try encoding and decoding with 'ignore' to skip problematic characters
+                            return text.encode('utf-8').decode('windows-1252', 'ignore')
                         except UnicodeEncodeError:
-                            return text.encode('utf-8', 'ignore').decode('windows-1252')  # Ignore unconvertible characters
+                            # Return the original text if an error occurs
+                            return text
 
                     # calculate combined review sentiment 
                     text_emotion_pred = classifier(combined_review)
@@ -189,16 +196,6 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
         print(f"An error occurred: {e}")
         return {"error": str(e)}
 
-# def load_to_postgres(df):
-#     # Create a connection string (replace with your actual database details)
-#     db_url = POSTGRES_URI
-
-#     # Create an SQLAlchemy engine
-#     engine = create_engine(db_url)
-
-#     # Write the DataFrame to a PostgreSQL table
-#     df.to_sql('reviews', engine, if_exists='append', index=False)
-
 def load_to_postgres(df):
     # Create a connection string (replace with your actual database details)
     db_url = POSTGRES_URI
@@ -210,31 +207,34 @@ def load_to_postgres(df):
     data = df.to_dict(orient='records')
 
     # Construct the insert statement with "ON CONFLICT DO NOTHING"
-    # insert_query = text("""
-    # INSERT INTO reviews (hotel_id, source_id, review_text, review_rating, reviewer_name, review_date, sentiment, country)
-    # VALUES (%(hotel_id)s, %(source_id)s, %(review_text)s, %(review_rating)s, %(reviewer_name)s, %(review_date)s, %(sentiment)s, %(country)s)
-    # ON CONFLICT (hotel_id, source_id, reviewer_name, review_text) DO NOTHING;
-    # """)
-
     insert_query = text("""
             INSERT INTO reviews (hotel_id, source_id, review_text, review_rating, reviewer_name, review_date, sentiment, country)
             VALUES (:hotel_id, :source_id, :review_text, :review_rating, :reviewer_name, :review_date, :sentiment, :country)
             ON CONFLICT (hotel_id, source_id, reviewer_name, review_text) DO NOTHING;
         """)
-
+    
     # Execute the query for each row in the DataFrame
     with engine.connect() as conn:
         for row in data:
+            # print(f"Inserting row: {row}")  # Log the row being inserted
             conn.execute(insert_query, row)
+            # print(f"{row} successfully inserted")
+        
+        conn.commit()
 
     print("Data loaded successfully, duplicate reviews ignored.")
 
 
-review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&",
-                                             hotel_id='e1ada55f-000c-4991-9527-f72362cb6e80',
-                                             source_id='25e89862-0a2c-4d53-900a-6cb3300c4268'))
-# review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main"))
-print(review_df)
+# pulling user reviews from booking.com for Kwantu Guesthouse 1
+# review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&",
+#                                              hotel_id='e1ada55f-000c-4991-9527-f72362cb6e80',
+#                                              source_id='25e89862-0a2c-4d53-900a-6cb3300c4268'))
+
+# pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
+review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
+                        hotel_id = 'b8e318bb-dade-45e5-b87a-b8359f077a2d',
+                        source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268'
+                        ))
+print(review_df[['reviewer_name', 'review_text']])
 print('Loading dataframe into database')
 load_to_postgres(review_df)
-print('Dataframe loaded to database')
