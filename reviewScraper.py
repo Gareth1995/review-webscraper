@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 POSTGRES_URI = os.getenv('TEMBO_URI')
 HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
+MAX_TOKENS = 512  # Adjust based on sentiment model's limit
 
 from huggingface_hub import login
 login(token=HUGGINGFACE_TOKEN)
@@ -19,7 +20,7 @@ classifier = pipeline("text-classification", model="j-hartmann/emotion-english-d
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-async def scrape_hotel_reviews(url_link, hotel_id, source_id):
+async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
 
     try:
         async with async_playwright() as p:
@@ -49,8 +50,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
             last_review_page_num = await page.locator('div.ab95b25344 > ol > li:last-child').text_content()
             print('Last review page number:', last_review_page_num)
 
-            # for i in range(1, int(last_review_page_num) + 1):
-            for i in range(1, 10):
+            for i in range(1, int(last_review_page_num) + 1):
+            # for i in range(1, 2):
                 
                 print(f'navigating to page {i}')
                 # click button where aria-label = i
@@ -96,6 +97,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
                     reviewer_country.append(alt_text)
                 else:
                     print('no alt tag found')
+                    reviewer_country.append('NA')
                 
                 # get reviewer name
                 rev_name = div.find('div', class_ = "a3332d346a e6208ee469").get_text()
@@ -127,11 +129,6 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
                 # Append to the reviews list if there's any text
                 if combined_review:
 
-                    # def convert_to_win1252(text):
-                    #     try:
-                    #         return text.encode('utf-8').decode('windows-1252')
-                    #     except UnicodeEncodeError:
-                    #         return text.encode('utf-8', 'ignore').decode('windows-1252')  # Ignore unconvertible characters
                     def convert_to_win1252(text):
                         try:
                             # Try encoding and decoding with 'ignore' to skip problematic characters
@@ -139,9 +136,17 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
                         except UnicodeEncodeError:
                             # Return the original text if an error occurs
                             return text
+                    
+                    # Tokenize the text first to check length
+                    tokens = classifier.tokenizer.tokenize(combined_review)
 
                     # calculate combined review sentiment 
-                    text_emotion_pred = classifier(combined_review)
+                    # Check if the text exceeds the model's max token length
+                    if len(tokens) >= MAX_TOKENS:
+                        text_emotion_pred = None
+                        review_sentiment.append(text_emotion_pred)  # Append "NA" if text is too long
+                    else:
+                        text_emotion_pred = classifier(combined_review)
 
                     if text_emotion_pred:
                         # Find the label with the highest score
@@ -190,6 +195,10 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id):
 
         await browser.close()
 
+        # save data as csv
+        filename = 'output/'+filename
+        review_df.to_csv(filename)
+
         return review_df
 
     except Exception as e:
@@ -233,8 +242,10 @@ def load_to_postgres(df):
 # pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
 review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
                         hotel_id = 'b8e318bb-dade-45e5-b87a-b8359f077a2d',
-                        source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268'
+                        source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268',
+                        filename='bantry_aparthotel.csv'
                         ))
-print(review_df[['reviewer_name', 'review_text']])
+print(review_df[['reviewer_name', 'review_text', 'sentiment']])
+
 print('Loading dataframe into database')
 load_to_postgres(review_df)
