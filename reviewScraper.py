@@ -13,6 +13,7 @@ POSTGRES_URI = os.getenv('TEMBO_URI')
 # HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
 # MAX_TOKENS = 512  # Adjust based on sentiment model's limit
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+TIMEOUT_LENGTH = 500
 
 # from huggingface_hub import login
 # login(token=HUGGINGFACE_TOKEN)
@@ -128,7 +129,7 @@ async def get_partner_reply(card):
         # Wait for the reply text to appear, refine the locator to target the reply specifically
         # reply_locator = card.locator('.a53cbfa6de.b5726afd0b span').nth(1)  # Use .nth(1) to target the second <span> (partner's reply)
         reply_locator = card.locator('[data-testid="review-partner-reply"] .a53cbfa6de.b5726afd0b span')
-        await reply_locator.wait_for(timeout=3000)  # Wait for the reply to appear
+        await reply_locator.wait_for(timeout=TIMEOUT_LENGTH)  # Wait for the reply to appear (try commenting out this wait)
 
         # Get the reply text
         reply_text = await reply_locator.text_content()
@@ -143,9 +144,6 @@ async def get_partner_reply(card):
 async def get_review_created_date(card):
     # Look for the review date inside the review card
     date_locator = card.locator('[data-testid="review-date"]')
-
-    # Wait for the date element to be visible (adjust timeout if needed)
-    # await date_locator.wait_for(timeout=3000)
 
     # Get the text content (e.g., "Reviewed: February 12, 2025")
     date_text = await date_locator.text_content()
@@ -225,6 +223,24 @@ def create_review_dataframe(hotel_id, source_id, hotel_name, source_name, positi
     
     return df
 
+def save_to_csv(filename, df):
+    # Check if the file already exists
+    if os.path.exists(filename):
+        # Prompt the user for confirmation
+        user_input = input(f"The file '{filename}' already exists. Do you want to overwrite it? (y/n): ").strip().lower()
+
+        # If the user confirms, save the dataframe as CSV
+        if user_input == 'y':
+            df.to_csv(filename, index=False)
+            print(f"Review data saved to '{filename}'")
+        else:
+            print("File not overwritten. Review data not saved.")
+    else:
+        # If the file doesn't exist, save the dataframe as CSV
+        df.to_csv(filename, index=False)
+        print(f"Review data saved to '{filename}'")
+
+
 async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source_name, filename):
 
     try:
@@ -246,11 +262,11 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
             group_type = []
             review_feedback = []
 
-            ################### Scraping for Booking.com ###################
+            ################### Scraping from Booking.com ###################
             search_url = (url_link)
             await page.goto(search_url)
 
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(TIMEOUT_LENGTH)
 
             # click on see reviews button
             await page.locator('[data-testid="fr-read-all-reviews"]').click()
@@ -260,13 +276,13 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
             last_review_page_num = await page.locator('div.ab95b25344 > ol > li:last-child').text_content()
             print('Last review page number:', last_review_page_num)
 
-            # for i in range(1, int(last_review_page_num) + 1):
-            for i in range(1, 2):
+            for i in range(1, int(last_review_page_num) + 1):
+            # for i in range(1, 3):
                 
                 print(f'navigating to page {i}')
                 # click button where aria-label = i
                 await page.locator(f'button[aria-label=" {i}"]').click()
-                await page.wait_for_timeout(3000)
+                await page.wait_for_timeout(TIMEOUT_LENGTH)
                 print('Navigation successful')
 
                 # Get all review cards
@@ -343,8 +359,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                     ###################################################################
                     ##################### REVIEWER SENTIMENT ##########################
                     ###################################################################
-                    sample_content = "Positive: " + str(positive_review) + " negative: " + str(negative_review)
-                    sample_query = "tell me which sentiment fits this review best: anger, disgust, fear, joy, neutral, sadness, surprise GIVE ME ONLY THE SENTIMENT. NO OTHER WORDS."
+                    # sample_content = "Positive: " + str(positive_review) + " negative: " + str(negative_review)
+                    # sample_query = "tell me which sentiment fits this review best: anger, disgust, fear, joy, neutral, sadness, surprise GIVE ME ONLY THE SENTIMENT. NO OTHER WORDS."
                 
                     # try:
                     #     response = query_claude(sample_content, sample_query)
@@ -353,23 +369,21 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                         
                     # except Exception as e:
                     #     print(f"Failed to get response: {e}")
-                    review_sentiment.append('joy')
-
-                
+                    review_sentiment.append(None)
 
                                 
-            print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
-            print(f'Extracted {len(negative_review_text_array)} negative reviews so far')
-            print(f'Extracted {len(review_rating)} review ratings so far')
-            print(f'Extracted {len(reviewer_names)} review names so far')
-            print(f'Extracted {len(review_checkin_dates)} review dates so far')
-            print(f'Extracted {len(reviewer_country)} reviewer countries so far')
-            print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
-            print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
-            print(f'Extracted {len(group_type)} reviewer group types so far')
-            print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
-            print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
-            print(f'Extracted {len(review_created_date)} review date created so far')
+            print(f'Extracted {len(positive_review_text_array)} positive reviews in total')
+            print(f'Extracted {len(negative_review_text_array)} negative reviews in total')
+            print(f'Extracted {len(review_rating)} review ratings in total')
+            print(f'Extracted {len(reviewer_names)} review names in total')
+            print(f'Extracted {len(review_checkin_dates)} review dates in total')
+            print(f'Extracted {len(reviewer_country)} reviewer countries in total')
+            print(f'Extracted {len(apartment_type)} reviewer apartment types in total')
+            print(f'Extracted {len(num_nights_stay)} reviewer stay length in total')
+            print(f'Extracted {len(group_type)} reviewer group types in total')
+            print(f'Extracted {len(review_feedback)} reviewer feedbacks in total')
+            print(f'Extracted {len(review_sentiment)} reviewer feedbacks in total')
+            print(f'Extracted {len(review_created_date)} review date created in total')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
@@ -416,17 +430,18 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                                              review_feedback)
 
         
-        filename = 'output/'+filename
-        df_reviews.to_csv(filename, index=False)
-        print('review data saved')
+        # filename = 'output/'+filename
+        # df_reviews.to_csv(filename, index=False)
+        # print('review data saved')
 
+        save_to_csv(filename, df_reviews)
         return df_reviews
 
     except Exception as e:
         print(f"An error occurred: {e}")
         return {"error": str(e)}
 
-# MAY CHANGE THIS TO APPENED LOAD CSV TO POSTGRES
+# MAY CHANGE THIS TO LOAD CSV TO POSTGRES (ADD FUNCTIONALITY TO JUPYTER NOTEBOOK OR OTHER PYTHON FILE)
 def load_to_postgres(df):
     # Create a connection string (replace with your actual database details)
     db_url = POSTGRES_URI
@@ -467,9 +482,5 @@ review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/b
             source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268',
             hotel_name = 'Bantry Aparthhotel by Totalstay',
             source_name = 'booking.com',
-            filename='bantry_aparthotel.csv'
+            filename='output/bantry_aparthotel.csv'
             ))
-# print(review_df[['reviewer_name', 'review_text', 'sentiment']])
-
-# print('Loading dataframe into database')
-# load_to_postgres(review_df)
