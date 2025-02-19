@@ -1,0 +1,5 @@
+Deleting a model repo
+ - Open anaconda cmd prompt
+ - Activate the env that is being used in your project
+ - insert the following "command huggingface-cli delete-cache"
+ - select repos to delete and press enter

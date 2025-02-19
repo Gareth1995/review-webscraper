@@ -2,7 +2,6 @@ import os
 from playwright.async_api import async_playwright
 import asyncio
 from anthropic import Anthropic
-# from transformers import pipeline
 import re
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -10,17 +9,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 POSTGRES_URI = os.getenv('TEMBO_URI')
-# HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
-# MAX_TOKENS = 512  # Adjust based on sentiment model's limit
+
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 TIMEOUT_LENGTH = 500
 
-# from huggingface_hub import login
-# login(token=HUGGINGFACE_TOKEN)
-
-# classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
-
-# os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 async def get_neg_pos_review(card):
     # Extract positive review
