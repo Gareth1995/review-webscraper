@@ -2,7 +2,7 @@ import os
 from playwright.async_api import async_playwright
 import asyncio
 from bs4 import BeautifulSoup
-from transformers import pipeline
+# from transformers import pipeline
 import re
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -10,15 +10,78 @@ from dotenv import load_dotenv
 
 load_dotenv()
 POSTGRES_URI = os.getenv('TEMBO_URI')
-HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
-MAX_TOKENS = 512  # Adjust based on sentiment model's limit
+# HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
+# MAX_TOKENS = 512  # Adjust based on sentiment model's limit
 
-from huggingface_hub import login
-login(token=HUGGINGFACE_TOKEN)
+# from huggingface_hub import login
+# login(token=HUGGINGFACE_TOKEN)
 
-classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
+# classifier = pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", return_all_scores=True)
 
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+# os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+async def get_neg_pos_review(card):
+    # Extract positive review
+    positive_review_locator = card.locator('[data-testid="review-positive-text"] span')
+    positive_review_count = await positive_review_locator.count()
+
+    if positive_review_count > 1:
+        positive_review = await positive_review_locator.nth(1).text_content()  # Get the visible text
+    elif positive_review_count == 1:
+        positive_review = await positive_review_locator.first.text_content()
+    else:
+        positive_review = None  # If no positive review exists
+
+    # Extract negative review (same approach)
+    negative_review_locator = card.locator('[data-testid="review-negative-text"] span')
+    negative_review_count = await negative_review_locator.count()
+
+    if negative_review_count > 1:
+        negative_review = await negative_review_locator.nth(1).text_content()
+    elif negative_review_count == 1:
+        negative_review = await negative_review_locator.first.text_content()
+    else:
+        negative_review = None  # If no negative review exists
+
+    return positive_review, negative_review
+
+async def get_score(card):
+    score_locator = card.locator('.a3b8729ab1.d86cee9b25')
+
+    # Get the full text and extract the last occurrence of the score
+    full_text = await score_locator.text_content()
+    
+    # Extract the numeric score (usually at the end of the text)
+    score = full_text.strip().split()[-1]  # This gets the last part (e.g., '8.0')
+
+    return score
+
+async def get_reviewer_name(card):
+    name_locator = card.locator('.a3332d346a.e6208ee469')
+    
+    if await name_locator.count() > 0:  # Check if locator exists
+        reviewer_name = await name_locator.text_content()
+        return reviewer_name.strip()  # Store cleaned text
+    else:
+        return None  # Insert None if locator is missing
+
+async def get_review_date(card):
+    date_locator = card.locator('[data-testid="review-stay-date"]')
+    
+    if await date_locator.count() > 0:  # Check if locator exists
+        stay_date = await date_locator.text_content()
+        return stay_date.strip()  # Store cleaned text
+    else:
+        return None  # Insert None if locator is missing
+
+async def get_country(card):
+    country_locator = card.locator('span.afac1f68d9.a1ad95c055')
+
+    if await country_locator.count() > 0:  # Check if locator exists
+        country = await country_locator.text_content()
+        return country.strip()  # Store cleaned text
+    else:
+        return None  # Insert None if locator is missing
 
 async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
 
@@ -29,12 +92,17 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             page = await context.new_page()
 
             reviews_html = []
-            review_text = []
+            positive_review_text_array = []
+            negative_review_text_array = []
             review_rating = []
-            reviewer_name = []
+            reviewer_names = []
             reviewer_country = []
             review_sentiment = []
-            review_date = []
+            review_dates = []
+            apartment_type = []
+            length_of_stay = []
+            group_type = []
+            review_feedback = []
 
             ################### Scraping for Booking.com ###################
             search_url = (url_link)
@@ -50,8 +118,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             last_review_page_num = await page.locator('div.ab95b25344 > ol > li:last-child').text_content()
             print('Last review page number:', last_review_page_num)
 
-            for i in range(1, int(last_review_page_num) + 1):
-            # for i in range(1, 2):
+            # for i in range(1, int(last_review_page_num) + 1):
+            for i in range(1, 5):
                 
                 print(f'navigating to page {i}')
                 # click button where aria-label = i
@@ -59,152 +127,89 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                 await page.wait_for_timeout(3000)
                 print('Navigation successful')
 
-                # get all review cards
-                reviews = page.locator('[aria-label="Review card"]')
-                print(f'reviews on page {i} obtained')
+                # Get all review cards
+                review_cards = await page.locator('[aria-label="Review card"]').all()
+                total_reviews = len(review_cards)
+                print(f'Found {total_reviews} review cards on page {i}')
 
-                # get count of review statements
-                count = await reviews.count()
-                print('Number of reviews:', count)
-
-                # get text content of each review statement
-                for j in range(count):
-                    # Get the HTML content of each review div
-                    div_html = await reviews.nth(j).evaluate("(element) => element.outerHTML")
-                    if div_html:
-                        reviews_html.append(div_html)
-
-            print('Total number of reviews:', len(reviews_html)) 
-
-        # Parse the HTML with BeautifulSoup
-        for review in reviews_html:
-            soup = BeautifulSoup(review, 'html.parser')
-
-            # get average hotel rating
-            avg_viewer_rating = soup.find('div', class_ = 'ac4a7896c7').get_text()
-            avg_viewer_rating = int(re.search(r'\d+', avg_viewer_rating).group())
-            review_rating.append(avg_viewer_rating)
-
-            # Get the nationality, name and review date of each reviewer
-            divs = soup.find_all('div', class_="b817090550 c44c37515e")
-
-            # Extract the alt text from the img tag within each div
-            for div in divs:
-                # get reviewer country
-                img_tag = div.find('div', class_="abf093bdfe f45d8e4c32").find('img')
-                if img_tag and 'alt' in img_tag.attrs:  # Ensure the img tag and 'alt' attribute exist
-                    alt_text = img_tag['alt']
-                    reviewer_country.append(alt_text)
-                else:
-                    print('no alt tag found')
-                    reviewer_country.append('NA')
-                
-                # get reviewer name
-                rev_name = div.find('div', class_ = "a3332d346a e6208ee469").get_text()
-                reviewer_name.append(rev_name)
-
-                # get date of review
-                rev_date = div.find('span', class_ = 'abf093bdfe d88f1120c1').get_text()
-                review_date.append(rev_date)
-
-                
-
-            # get review text from every review card
-            # Find all div elements with the specified class
-            divs = soup.find_all('div', class_="c624d7469d a0e60936ad a3214e5942")
-
-            # Loop through each div and extract text from span tags
-            for div in divs:
-                # Extract positive review text
-                positive_div = div.find('div', {'data-testid': 'review-positive-text'})
-                positive_text = positive_div.get_text(strip=True) if positive_div else ""
-
-                # Extract negative review text
-                negative_div = div.find('div', {'data-testid': 'review-negative-text'})
-                negative_text = negative_div.get_text(strip=True) if negative_div else ""
-
-                # Concatenate positive and negative reviews
-                combined_review = f"{positive_text} {negative_text}".strip()
-                
-                # Append to the reviews list if there's any text
-                if combined_review:
-
-                    def convert_to_win1252(text):
-                        try:
-                            # Try encoding and decoding with 'ignore' to skip problematic characters
-                            return text.encode('utf-8').decode('windows-1252', 'ignore')
-                        except UnicodeEncodeError:
-                            # Return the original text if an error occurs
-                            return text
+                for card in review_cards:
                     
-                    # Tokenize the text first to check length
-                    tokens = classifier.tokenizer.tokenize(combined_review)
+                    ################################################################
+                    ##################### REVIEW TEXT SCRAPING #####################
+                    ################################################################
+                    positive_review, negative_review = await get_neg_pos_review(card)
 
-                    # calculate combined review sentiment 
-                    # Check if the text exceeds the model's max token length
-                    if len(tokens) >= MAX_TOKENS:
-                        text_emotion_pred = None
-                        review_sentiment.append(text_emotion_pred)  # Append "NA" if text is too long
-                    else:
-                        text_emotion_pred = classifier(combined_review)
+                    # Store the values
+                    positive_review_text_array.append(positive_review)
+                    negative_review_text_array.append(negative_review)
 
-                    if text_emotion_pred:
-                        # Find the label with the highest score
-                        max_emotion = max(text_emotion_pred[0], key=lambda x: x['score'])
+                    ################################################################
+                    ##################### REVIEW RATING SCRAPE #####################
+                    ################################################################
+                    score = await get_score(card)
+                    review_rating.append(score)
 
-                        # Get the label with the highest score
-                        label_with_highest_score = max_emotion['label']
+                    ################################################################
+                    ##################### REVIEWER NAME SCRAPE #####################
+                    ################################################################
+                    rev_name = await get_reviewer_name(card)
+                    reviewer_names.append(rev_name)
 
-                        combined_review = convert_to_win1252(combined_review)
-                        review_text.append(combined_review)
-                        review_sentiment.append(label_with_highest_score)
+                    ################################################################
+                    ##################### REVIEWER DATE SCRAPE #####################
+                    ################################################################
+                    rev_date = await get_review_date(card)
+                    review_dates.append(rev_date)
+
+                    ###################################################################
+                    ##################### REVIEWER COUNTRY SCRAPE #####################
+                    ###################################################################
+                    rev_country = await get_country(card)
+                    reviewer_country.append(rev_country)
+
+                    ##########################################################################
+                    ##################### REVIEWER APARTMENT TYPE SCRAPE #####################
+                    ##########################################################################
+                
+                
+                
                 
 
-        # pad nas to review list
-        review_text = review_text + [None] * (len(reviews_html) - len(review_text)) # NAs to review texts for missing text
-        review_sentiment = review_sentiment + [None] * (len(reviews_html) - len(review_sentiment)) # NAs to review sentiments for missing text   
+                    
 
-        print('Number of countries:', len(reviewer_country))
-        # print(reviewer_country)
+                
+                # print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
+                # print(f'Extracted {len(negative_review_text_array)} negative reviews so far')
+                # print(f'Extracted {len(review_rating)} review ratings so far')
+                # print(f'Extracted {len(reviewer_names)} review names so far')
+                # print(f'Extracted {len(review_dates)} review dates so far')
+                # print(f'Extracted {len(reviewer_country)} reviewer countries so far')
+                
+                
+            # print('All positive reviews:', positive_review_text_array)
+            # print('All negative reviews:', negative_review_text_array)
+            # print('All review ratings:', review_rating)
+            # print('All review names:', reviewer_names)
+            # print('All review dates:', review_dates)
+            # print('All reviewer countries:', reviewer_country)
+            # print(f'Total positive reviews: {len(positive_review_text_array)}')
+            # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
-        print('Number of reviews:', len(review_text))
-        # print(review_text)
-
-        print('Number of named reviewers:', len(reviewer_name))
-        # print(reviewer_name)
-
-        print('Number of review timestamps:', len(review_date))
-        # print(review_date)
-
-        print('Number of review sentiments:', len(review_sentiment))
-        # print(review_sentiment)
-
-        print('Number of review ratings:', len(review_rating))
-
-        # Create a DataFrame from the lists
-        review_df = pd.DataFrame({
-            'hotel_id': hotel_id,
-            'source_id': source_id,
-            'review_text': review_text,
-            'review_rating': review_rating,
-            'reviewer_name': reviewer_name,
-            'review_date': review_date,
-            'sentiment': review_sentiment,
-            'country': reviewer_country,
-        })
 
         await browser.close()
 
         # save data as csv
-        filename = 'output/'+filename
-        review_df.to_csv(filename)
+        # print('saving review data to csv')
+        # filename = 'output/'+filename
+        # review_df.to_csv(filename, index=False)
 
-        return review_df
+        # return review_df
 
     except Exception as e:
         print(f"An error occurred: {e}")
         return {"error": str(e)}
 
+# MAY CHANGE THIS TO APPENED LOAD CSV TO POSTGRES
 def load_to_postgres(df):
     # Create a connection string (replace with your actual database details)
     db_url = POSTGRES_URI
@@ -240,12 +245,12 @@ def load_to_postgres(df):
 #                                              source_id='25e89862-0a2c-4d53-900a-6cb3300c4268'))
 
 # pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
-review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
-                        hotel_id = 'b8e318bb-dade-45e5-b87a-b8359f077a2d',
-                        source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268',
-                        filename='bantry_aparthotel.csv'
-                        ))
-print(review_df[['reviewer_name', 'review_text', 'sentiment']])
+asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
+            hotel_id = 'b8e318bb-dade-45e5-b87a-b8359f077a2d',
+            source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268',
+            filename='bantry_aparthotel.csv'
+            ))
+# print(review_df[['reviewer_name', 'review_text', 'sentiment']])
 
-print('Loading dataframe into database')
-load_to_postgres(review_df)
+# print('Loading dataframe into database')
+# load_to_postgres(review_df)
