@@ -126,9 +126,9 @@ async def get_partner_reply(card):
         await continue_reading_button.click()
 
         # Wait for the reply text to appear, refine the locator to target the reply specifically
-        reply_locator = card.locator('.a53cbfa6de.b5726afd0b span').nth(1)  # Use .nth(1) to target the second <span> (partner's reply)
-
-        await reply_locator.wait_for(timeout=2000)  # Wait for the reply to appear
+        # reply_locator = card.locator('.a53cbfa6de.b5726afd0b span').nth(1)  # Use .nth(1) to target the second <span> (partner's reply)
+        reply_locator = card.locator('.c5811cad6b .a53cbfa6de.b5726afd0b span').nth(1)
+        await reply_locator.wait_for(timeout=3000)  # Wait for the reply to appear
 
         # Get the reply text
         reply_text = await reply_locator.text_content()
@@ -181,7 +181,32 @@ def query_claude(content: str, query: str) -> str:
         print(f"Error querying Claude API: {e}")
         raise
 
-async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
+def create_review_dataframe(hotel_id, source_id, hotel_name, source_name, positive_review_text_array, negative_review_text_array, review_rating, reviewer_names, reviewer_country, review_sentiment, review_dates, apartment_type, num_nights_stay, group_type, review_feedback):
+    # Create a dictionary with each array as a key-value pair
+    data = {
+        'hotel_id': hotel_id,
+        'source_id': source_id,
+        'hotel_name': hotel_name,
+        'source_name': source_name,
+        'Positive Review': positive_review_text_array,
+        'Negative Review': negative_review_text_array,
+        'Review Rating': review_rating,
+        'Reviewer Name': reviewer_names,
+        'Reviewer Country': reviewer_country,
+        'Review Sentiment': review_sentiment,
+        'Review Date': review_dates,
+        'Apartment Type': apartment_type,
+        'Number of Nights Stay': num_nights_stay,
+        'Group Type': group_type,
+        'Review Feedback': review_feedback
+    }
+    
+    # Create a DataFrame using the dictionary
+    df = pd.DataFrame(data)
+    
+    return df
+
+async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source_name, filename):
 
     try:
         async with async_playwright() as p:
@@ -294,15 +319,16 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                     sample_content = "Positive: " + str(positive_review) + " negative: " + str(negative_review)
                     sample_query = "tell me which sentiment fits this review best: anger, disgust, fear, joy, neutral, sadness, surprise GIVE ME ONLY THE SENTIMENT. NO OTHER WORDS."
                     
-                    try:
-                        response = query_claude(sample_content, sample_query)
-                        print("Claude's response:", response)
-                        review_sentiment.append(response)
+                    # try:
+                    #     response = query_claude(sample_content, sample_query)
+                    #     # print("Claude's response:", response)
+                    #     review_sentiment.append(response)
                         
-                    except Exception as e:
-                        print(f"Failed to get response: {e}")
+                    # except Exception as e:
+                    #     print(f"Failed to get response: {e}")
+                    review_sentiment.append('joy')
 
-                print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
+                
                 
                                 
                 # print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
@@ -315,6 +341,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                 # print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
                 # print(f'Extracted {len(group_type)} reviewer group types so far')
                 # print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
+                # print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
@@ -327,7 +354,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             # print('All reviewer stay lengths:', num_nights_stay)
             # print('All reviewer group types:', group_type)
             # print('All reviewer feedbacks:', review_feedback)
-            print('All reviewer sentiments:', review_sentiment)
+            # print('All reviewer sentiments:', review_sentiment)
             # print(f'Total positive reviews: {len(positive_review_text_array)}')
             # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
@@ -335,11 +362,35 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
         await browser.close()
 
         # save data as csv
-        # print('saving review data to csv')
-        # filename = 'output/'+filename
-        # review_df.to_csv(filename, index=False)
+        # Create the DataFrame
+        print('saving review data to csv')
+        hotel_ids = [hotel_id] * len(review_rating)
+        source_ids = [source_id] * len(review_rating)
+        hotel_name = [hotel_name] * len(review_rating)
+        source_name = [source_name] * len(review_rating)
 
-        # return review_df
+        df_reviews = create_review_dataframe(hotel_ids,
+                                             source_ids,
+                                             hotel_name,
+                                             source_name,
+                                             positive_review_text_array,
+                                             negative_review_text_array,
+                                             review_rating,
+                                             reviewer_names,
+                                             reviewer_country,
+                                             review_sentiment,
+                                             review_dates,
+                                             apartment_type,
+                                             num_nights_stay,
+                                             group_type,
+                                             review_feedback)
+
+        
+        filename = 'output/'+filename
+        df_reviews.to_csv(filename, index=False)
+        print('review data saved')
+
+        return df_reviews
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -381,9 +432,11 @@ def load_to_postgres(df):
 #                                              source_id='25e89862-0a2c-4d53-900a-6cb3300c4268'))
 
 # pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
-asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
+review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
             hotel_id = 'b8e318bb-dade-45e5-b87a-b8359f077a2d',
             source_id= '25e89862-0a2c-4d53-900a-6cb3300c4268',
+            hotel_name = 'Bantry Aparthhotel by Totalstay',
+            source_name = 'booking.com',
             filename='bantry_aparthotel.csv'
             ))
 # print(review_df[['reviewer_name', 'review_text', 'sentiment']])
