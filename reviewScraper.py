@@ -104,6 +104,62 @@ async def get_length_of_stay(card):
 
     return num_nights
 
+async def get_group_type(card):
+    traveler_locator = card.locator('span[data-testid="review-traveler-type"]')
+
+    if await traveler_locator.count() > 0:  # Check if locator exists
+        traveler_type = await traveler_locator.text_content()
+    else:
+        traveler_type = None  # Insert None if locator is missing
+
+    return traveler_type
+
+async def get_partner_reply(card):
+
+    # # Look for the "Continue reading" button inside the review card
+    # continue_reading_button = card.locator('[data-testid="review-pr-toggle"]')
+
+    # # Check if the button is visible
+    # if await continue_reading_button.is_visible():
+    #     # Click to reveal the reply
+    #     await continue_reading_button.click()
+
+    #     # Wait for the reply text to appear using the locator's wait_for method
+    #     reply_locator = card.locator('.a53cbfa6de.b5726afd0b span')
+    #     await reply_locator.wait_for(timeout=5000)  # Wait for the reply to appear
+
+    #     # Get the reply text
+    #     reply_text = await reply_locator.text_content()
+
+    #     if reply_text:
+    #         return reply_text.strip()  # Return the reply text if found
+    #     else:
+    #         return None
+    # else:
+    #     return None
+    # Look for the "Continue reading" button inside the review card
+    continue_reading_button = card.locator('[data-testid="review-pr-toggle"]')
+
+    # Check if the button is visible
+    if await continue_reading_button.is_visible():
+        # Click to reveal the reply
+        await continue_reading_button.click()
+
+        # Wait for the reply text to appear, refine the locator to target the reply specifically
+        reply_locator = card.locator('.a53cbfa6de.b5726afd0b span').nth(1)  # Use .nth(1) to target the second <span> (partner's reply)
+
+        await reply_locator.wait_for(timeout=2000)  # Wait for the reply to appear
+
+        # Get the reply text
+        reply_text = await reply_locator.text_content()
+
+        if reply_text:
+            return reply_text.strip()  # Return the reply text if found
+        else:
+            return None
+    else:
+        return None
+
 async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
 
     try:
@@ -112,7 +168,6 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             context = await browser.new_context()
             page = await context.new_page()
 
-            reviews_html = []
             positive_review_text_array = []
             negative_review_text_array = []
             review_rating = []
@@ -199,12 +254,24 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                     ###################################################################
                     rev_length_stay = await get_length_of_stay(card)
                     num_nights_stay.append(rev_length_stay)
-                
-                
 
-                    
+                    ###################################################################
+                    ##################### REVIEWER GROUP TYPE #########################
+                    ###################################################################
+                    rev_group_type = await get_group_type(card)
+                    group_type.append(rev_group_type)
 
+                    ###################################################################
+                    ##################### FEEDBACK TO REVIEWER ########################
+                    ###################################################################
+                    partner_reply = await get_partner_reply(card)
+                    review_feedback.append(partner_reply)
+
+                    ###################################################################
+                    ##################### REVIEWER SENTIMENT ##########################
+                    ###################################################################
                 
+                                
                 # print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
                 # print(f'Extracted {len(negative_review_text_array)} negative reviews so far')
                 # print(f'Extracted {len(review_rating)} review ratings so far')
@@ -213,6 +280,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                 # print(f'Extracted {len(reviewer_country)} reviewer countries so far')
                 # print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
                 # print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
+                # print(f'Extracted {len(group_type)} reviewer group types so far')
+                print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
@@ -223,6 +292,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             # print('All reviewer countries:', reviewer_country)
             # print('All reviewer apartment types:', apartment_type)
             # print('All reviewer stay lengths:', num_nights_stay)
+            # print('All reviewer group types:', group_type)
+            # print('All reviewer feedbacks:', review_feedback)
             # print(f'Total positive reviews: {len(positive_review_text_array)}')
             # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
