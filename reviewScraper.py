@@ -1,7 +1,7 @@
 import os
 from playwright.async_api import async_playwright
 import asyncio
-from bs4 import BeautifulSoup
+from anthropic import Anthropic
 # from transformers import pipeline
 import re
 import pandas as pd
@@ -12,6 +12,7 @@ load_dotenv()
 POSTGRES_URI = os.getenv('TEMBO_URI')
 # HUGGINGFACE_TOKEN = os.getenv('HUGGING_FACE_TOKEN')
 # MAX_TOKENS = 512  # Adjust based on sentiment model's limit
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
 # from huggingface_hub import login
 # login(token=HUGGINGFACE_TOKEN)
@@ -116,27 +117,6 @@ async def get_group_type(card):
 
 async def get_partner_reply(card):
 
-    # # Look for the "Continue reading" button inside the review card
-    # continue_reading_button = card.locator('[data-testid="review-pr-toggle"]')
-
-    # # Check if the button is visible
-    # if await continue_reading_button.is_visible():
-    #     # Click to reveal the reply
-    #     await continue_reading_button.click()
-
-    #     # Wait for the reply text to appear using the locator's wait_for method
-    #     reply_locator = card.locator('.a53cbfa6de.b5726afd0b span')
-    #     await reply_locator.wait_for(timeout=5000)  # Wait for the reply to appear
-
-    #     # Get the reply text
-    #     reply_text = await reply_locator.text_content()
-
-    #     if reply_text:
-    #         return reply_text.strip()  # Return the reply text if found
-    #     else:
-    #         return None
-    # else:
-    #     return None
     # Look for the "Continue reading" button inside the review card
     continue_reading_button = card.locator('[data-testid="review-pr-toggle"]')
 
@@ -159,6 +139,47 @@ async def get_partner_reply(card):
             return None
     else:
         return None
+    
+def query_claude(content: str, query: str) -> str:
+    """
+    Send a query to Claude API about specific content and get the response.
+    
+    Args:
+        content (str): The text content to analyze or reference
+        query (str): The question or instruction for Claude about the content
+    
+    Returns:
+        str: Claude's response
+        
+    Raises:
+        Exception: If API call fails or authentication error occurs
+    """
+    try:
+        # Initialize Anthropic client
+        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        
+        # Construct the message
+        system_prompt = "You are Claude, an AI assistant. Please analyze the following content and answer the query about it."
+        full_prompt = f"{system_prompt}\n\nContent:\n{content}\n\nQuery:\n{query}"
+        
+        # Call Claude API
+        message = client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": full_prompt
+                }
+            ]
+        )
+        
+        # Extract and return Claude's response
+        return message.content[0].text
+        
+    except Exception as e:
+        print(f"Error querying Claude API: {e}")
+        raise
 
 async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
 
@@ -195,7 +216,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             print('Last review page number:', last_review_page_num)
 
             # for i in range(1, int(last_review_page_num) + 1):
-            for i in range(1, 5):
+            for i in range(1, 2):
                 
                 print(f'navigating to page {i}')
                 # click button where aria-label = i
@@ -270,6 +291,18 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                     ###################################################################
                     ##################### REVIEWER SENTIMENT ##########################
                     ###################################################################
+                    sample_content = "Positive: " + str(positive_review) + " negative: " + str(negative_review)
+                    sample_query = "tell me which sentiment fits this review best: anger, disgust, fear, joy, neutral, sadness, surprise GIVE ME ONLY THE SENTIMENT. NO OTHER WORDS."
+                    
+                    try:
+                        response = query_claude(sample_content, sample_query)
+                        print("Claude's response:", response)
+                        review_sentiment.append(response)
+                        
+                    except Exception as e:
+                        print(f"Failed to get response: {e}")
+
+                print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
                 
                                 
                 # print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
@@ -281,7 +314,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                 # print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
                 # print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
                 # print(f'Extracted {len(group_type)} reviewer group types so far')
-                print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
+                # print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
@@ -294,6 +327,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             # print('All reviewer stay lengths:', num_nights_stay)
             # print('All reviewer group types:', group_type)
             # print('All reviewer feedbacks:', review_feedback)
+            print('All reviewer sentiments:', review_sentiment)
             # print(f'Total positive reviews: {len(positive_review_text_array)}')
             # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
