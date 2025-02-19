@@ -66,7 +66,7 @@ async def get_reviewer_name(card):
     else:
         return None  # Insert None if locator is missing
 
-async def get_review_date(card):
+async def get_checkin_date(card):
     date_locator = card.locator('[data-testid="review-stay-date"]')
     
     if await date_locator.count() > 0:  # Check if locator exists
@@ -127,7 +127,7 @@ async def get_partner_reply(card):
 
         # Wait for the reply text to appear, refine the locator to target the reply specifically
         # reply_locator = card.locator('.a53cbfa6de.b5726afd0b span').nth(1)  # Use .nth(1) to target the second <span> (partner's reply)
-        reply_locator = card.locator('.c5811cad6b .a53cbfa6de.b5726afd0b span').nth(1)
+        reply_locator = card.locator('[data-testid="review-partner-reply"] .a53cbfa6de.b5726afd0b span')
         await reply_locator.wait_for(timeout=3000)  # Wait for the reply to appear
 
         # Get the reply text
@@ -139,6 +139,24 @@ async def get_partner_reply(card):
             return None
     else:
         return None
+
+async def get_review_created_date(card):
+    # Look for the review date inside the review card
+    date_locator = card.locator('[data-testid="review-date"]')
+
+    # Wait for the date element to be visible (adjust timeout if needed)
+    # await date_locator.wait_for(timeout=3000)
+
+    # Get the text content (e.g., "Reviewed: February 12, 2025")
+    date_text = await date_locator.text_content()
+
+    if date_text:
+        # Extract the date value (e.g., "February 12, 2025")
+        review_date = date_text.replace("Reviewed: ", "").strip()
+        return review_date
+    else:
+        return None
+
     
 def query_claude(content: str, query: str) -> str:
     """
@@ -181,24 +199,25 @@ def query_claude(content: str, query: str) -> str:
         print(f"Error querying Claude API: {e}")
         raise
 
-def create_review_dataframe(hotel_id, source_id, hotel_name, source_name, positive_review_text_array, negative_review_text_array, review_rating, reviewer_names, reviewer_country, review_sentiment, review_dates, apartment_type, num_nights_stay, group_type, review_feedback):
+def create_review_dataframe(hotel_id, source_id, hotel_name, source_name, positive_review_text_array, negative_review_text_array, review_rating, reviewer_names, reviewer_country, review_sentiment, review_checkin_dates, review_created_date, apartment_type, num_nights_stay, group_type, review_feedback):
     # Create a dictionary with each array as a key-value pair
     data = {
         'hotel_id': hotel_id,
         'source_id': source_id,
         'hotel_name': hotel_name,
         'source_name': source_name,
-        'Positive Review': positive_review_text_array,
-        'Negative Review': negative_review_text_array,
-        'Review Rating': review_rating,
-        'Reviewer Name': reviewer_names,
-        'Reviewer Country': reviewer_country,
-        'Review Sentiment': review_sentiment,
-        'Review Date': review_dates,
-        'Apartment Type': apartment_type,
-        'Number of Nights Stay': num_nights_stay,
-        'Group Type': group_type,
-        'Review Feedback': review_feedback
+        'positive review': positive_review_text_array,
+        'negative review': negative_review_text_array,
+        'review rating': review_rating,
+        'reviewer name': reviewer_names,
+        'reviewer country': reviewer_country,
+        'review sentiment': review_sentiment,
+        'reviewer check in date': review_checkin_dates,
+        'review created date': review_created_date,
+        'apartment type': apartment_type,
+        'number of nights stay': num_nights_stay,
+        'group type': group_type,
+        'review feedback': review_feedback
     }
     
     # Create a DataFrame using the dictionary
@@ -220,7 +239,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
             reviewer_names = []
             reviewer_country = []
             review_sentiment = []
-            review_dates = []
+            review_checkin_dates = []
+            review_created_date = []
             apartment_type = []
             num_nights_stay = []
             group_type = []
@@ -277,11 +297,17 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                     rev_name = await get_reviewer_name(card)
                     reviewer_names.append(rev_name)
 
-                    ################################################################
-                    ##################### REVIEWER DATE SCRAPE #####################
-                    ################################################################
-                    rev_date = await get_review_date(card)
-                    review_dates.append(rev_date)
+                    ########################################################################
+                    ##################### REVIEWER CHECKIN DATE SCRAPE #####################
+                    ########################################################################
+                    rev_checkin_date = await get_checkin_date(card)
+                    review_checkin_dates.append(rev_checkin_date)
+
+                    ########################################################################
+                    ##################### REVIEWER CREATED DATE SCRAPE #####################
+                    ########################################################################
+                    review_date_created = await get_review_created_date(card)
+                    review_created_date.append(review_date_created)
 
                     ###################################################################
                     ##################### REVIEWER COUNTRY SCRAPE #####################
@@ -312,13 +338,14 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                     ###################################################################
                     partner_reply = await get_partner_reply(card)
                     review_feedback.append(partner_reply)
+                
 
                     ###################################################################
                     ##################### REVIEWER SENTIMENT ##########################
                     ###################################################################
                     sample_content = "Positive: " + str(positive_review) + " negative: " + str(negative_review)
                     sample_query = "tell me which sentiment fits this review best: anger, disgust, fear, joy, neutral, sadness, surprise GIVE ME ONLY THE SENTIMENT. NO OTHER WORDS."
-                    
+                
                     # try:
                     #     response = query_claude(sample_content, sample_query)
                     #     # print("Claude's response:", response)
@@ -329,32 +356,34 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                     review_sentiment.append('joy')
 
                 
-                
+
                                 
-                # print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
-                # print(f'Extracted {len(negative_review_text_array)} negative reviews so far')
-                # print(f'Extracted {len(review_rating)} review ratings so far')
-                # print(f'Extracted {len(reviewer_names)} review names so far')
-                # print(f'Extracted {len(review_dates)} review dates so far')
-                # print(f'Extracted {len(reviewer_country)} reviewer countries so far')
-                # print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
-                # print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
-                # print(f'Extracted {len(group_type)} reviewer group types so far')
-                # print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
-                # print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
+            print(f'Extracted {len(positive_review_text_array)} positive reviews so far')
+            print(f'Extracted {len(negative_review_text_array)} negative reviews so far')
+            print(f'Extracted {len(review_rating)} review ratings so far')
+            print(f'Extracted {len(reviewer_names)} review names so far')
+            print(f'Extracted {len(review_checkin_dates)} review dates so far')
+            print(f'Extracted {len(reviewer_country)} reviewer countries so far')
+            print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
+            print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
+            print(f'Extracted {len(group_type)} reviewer group types so far')
+            print(f'Extracted {len(review_feedback)} reviewer feedbacks so far')
+            print(f'Extracted {len(review_sentiment)} reviewer feedbacks so far')
+            print(f'Extracted {len(review_created_date)} review date created so far')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
             # print('All negative reviews:', negative_review_text_array)
             # print('All review ratings:', review_rating)
             # print('All review names:', reviewer_names)
-            # print('All review dates:', review_dates)
+            # print('All review dates:', review_checkin_dates)
             # print('All reviewer countries:', reviewer_country)
             # print('All reviewer apartment types:', apartment_type)
             # print('All reviewer stay lengths:', num_nights_stay)
             # print('All reviewer group types:', group_type)
             # print('All reviewer feedbacks:', review_feedback)
             # print('All reviewer sentiments:', review_sentiment)
+            # print('All reviewe created dates:', review_created_date)
             # print(f'Total positive reviews: {len(positive_review_text_array)}')
             # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
@@ -379,7 +408,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, hotel_name, source
                                              reviewer_names,
                                              reviewer_country,
                                              review_sentiment,
-                                             review_dates,
+                                             review_checkin_dates,
+                                             review_created_date,
                                              apartment_type,
                                              num_nights_stay,
                                              group_type,
