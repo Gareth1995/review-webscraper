@@ -82,6 +82,27 @@ async def get_country(card):
         return country.strip()  # Store cleaned text
     else:
         return None  # Insert None if locator is missing
+    
+async def get_apartment_type(card):
+    room_locator = card.locator('span[data-testid="review-room-name"]')
+
+    if await room_locator.count() > 0:  # Check if locator exists
+        room_name = await room_locator.text_content()
+        return room_name.strip()  # Store cleaned text
+    else:
+        return None  # Insert None if locator is missing
+    
+async def get_length_of_stay(card):
+    nights_locator = card.locator('span[data-testid="review-num-nights"]')
+
+    if await nights_locator.count() > 0:  # Check if locator exists
+        num_nights_text = await nights_locator.text_content()
+        match = re.search(r'(\d+)', num_nights_text)  # Extract the number using regex
+        num_nights = int(match.group(1)) if match else None  # Convert to int if found
+    else:
+        num_nights = None  # Insert None if locator is missing
+
+    return num_nights
 
 async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
 
@@ -100,7 +121,7 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             review_sentiment = []
             review_dates = []
             apartment_type = []
-            length_of_stay = []
+            num_nights_stay = []
             group_type = []
             review_feedback = []
 
@@ -170,8 +191,14 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                     ##########################################################################
                     ##################### REVIEWER APARTMENT TYPE SCRAPE #####################
                     ##########################################################################
-                
-                
+                    rev_apartment_type = await get_apartment_type(card)
+                    apartment_type.append(rev_apartment_type)
+
+                    ###################################################################
+                    ##################### REVIEWER LENGTH OF STAY #####################
+                    ###################################################################
+                    rev_length_stay = await get_length_of_stay(card)
+                    num_nights_stay.append(rev_length_stay)
                 
                 
 
@@ -184,6 +211,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
                 # print(f'Extracted {len(reviewer_names)} review names so far')
                 # print(f'Extracted {len(review_dates)} review dates so far')
                 # print(f'Extracted {len(reviewer_country)} reviewer countries so far')
+                # print(f'Extracted {len(apartment_type)} reviewer apartment types so far')
+                # print(f'Extracted {len(num_nights_stay)} reviewer stay length so far')
                 
                 
             # print('All positive reviews:', positive_review_text_array)
@@ -192,6 +221,8 @@ async def scrape_hotel_reviews(url_link, hotel_id, source_id, filename):
             # print('All review names:', reviewer_names)
             # print('All review dates:', review_dates)
             # print('All reviewer countries:', reviewer_country)
+            # print('All reviewer apartment types:', apartment_type)
+            # print('All reviewer stay lengths:', num_nights_stay)
             # print(f'Total positive reviews: {len(positive_review_text_array)}')
             # print(f'Total negative reviews: {len(negative_review_text_array)}')         
 
