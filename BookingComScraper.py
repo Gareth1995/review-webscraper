@@ -453,19 +453,18 @@ if __name__ == '__main__':
     booking_com_scraper = BookingComScraper()
 
     # pulling user reviews from booking.com for Kwantu Guesthouse 1
-    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&",
-                                                hotel_id='KWA123',
-                                                hotel_name='Kwantu Guesthouse 1',
-                                                source_name='booking.com',
-                                                filename='output/kwantu_1.csv'))
+    # review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouses-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1737982144&srpvid=15855a1d9db00417&type=total&ucfs=1&",
+    #                                             hotel_id='KWA123',
+    #                                             hotel_name='Kwantu Guesthouse 1',
+    #                                             source_name='booking.com',
+    #                                             filename='output/kwantu_1.csv'))
 
     # pulling user reviews from booking.com for Kwantu Guesthouse 2
-    # review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouse-2.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&checkin=2025-03-01&checkout=2025-03-15&dest_id=2911295&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&soh=1&sr_order=popularity&srepoch=1740002807&srpvid=ed219b784fca023f&type=total&ucfs=1&#no_availability_msg",
-    #                                              hotel_id='e1ada55f-000c-4991-9527-f72362cb6e80',
-    #                                              source_id='25e89862-0a2c-4d53-900a-6cb3300c4268',
-    #                                              hotel_name='Kwantu Guesthouse 2',
-    #                                              source_name='booking.com',
-    #                                              filename='output/kwantu_2.csv'))
+    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouse-2.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&checkin=2025-03-01&checkout=2025-03-15&dest_id=2911295&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&soh=1&sr_order=popularity&srepoch=1740002807&srpvid=ed219b784fca023f&type=total&ucfs=1&#no_availability_msg",
+                                                 hotel_id='KWA123',
+                                                 hotel_name='Kwantu Guesthouse 2',
+                                                 source_name='booking.com',
+                                                 filename='output/kwantu_2.csv'))
 
     # pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
     # review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
