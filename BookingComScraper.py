@@ -4,7 +4,6 @@ import asyncio
 from anthropic import Anthropic
 import re
 import pandas as pd
-from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 class BookingComScraper:
@@ -460,11 +459,11 @@ if __name__ == '__main__':
     #                                             filename='output/kwantu_1.csv'))
 
     # pulling user reviews from booking.com for Kwantu Guesthouse 2
-    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouse-2.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&checkin=2025-03-01&checkout=2025-03-15&dest_id=2911295&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&soh=1&sr_order=popularity&srepoch=1740002807&srpvid=ed219b784fca023f&type=total&ucfs=1&#no_availability_msg",
-                                                 hotel_id='KWA123',
-                                                 hotel_name='Kwantu Guesthouse 2',
-                                                 source_name='booking.com',
-                                                 filename='output/kwantu_2.csv'))
+    # review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/kwantu-guesthouse-2.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKwgd68BsACAdICJDg3NWYxYmY0LTBjNDktNGRiYy04Y2Q1LWUxOTAxZTY0MjgxONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&checkin=2025-03-01&checkout=2025-03-15&dest_id=2911295&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&soh=1&sr_order=popularity&srepoch=1740002807&srpvid=ed219b784fca023f&type=total&ucfs=1&#no_availability_msg",
+    #                                              hotel_id='KWA123',
+    #                                              hotel_name='Kwantu Guesthouse 2',
+    #                                              source_name='booking.com',
+    #                                              filename='output/kwantu_2.csv'))
 
     # pulling user reviews from booking.com for The Bantry Aparthotel by Totalstay
     # review_df = asyncio.run(scrape_hotel_reviews("https://www.booking.com/hotel/za/bantry-bay-suite-hotel-cape-town.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuALBgf28BsACAdICJDlhNDU1ZjQ1LWRiNmMtNGM0OC1iMDgxLWViNWY1NDZiYjYwNdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1217214&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=4&hpos=4&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1738499906&srpvid=b15f58da98a20577&type=total&ucfs=1&#tab-main",
@@ -474,3 +473,13 @@ if __name__ == '__main__':
     #             source_name = 'booking.com',
     #             filename='output/bantry_aparthotel.csv'
     #             ))
+
+    # pulling user reviews from booking.com for Morro Bay
+    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/us/morrobaybeachinn.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKx_9y9BsACAdICJDU4NmUxY2M5LWMxY2UtNDE0MS1iYjU4LWE1OTRiNTk4MzM5ONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&all_sr_blocks=1052579206_405616627_2_0_0&checkin=2025-03-01&checkout=2025-03-15&dest_id=10525792&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&highlighted_blocks=1052579206_405616627_2_0_0&hpos=1&matching_block_id=1052579206_405616627_2_0_0&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&sr_pri_blocks=1052579206_405616627_2_0_0__111700&srepoch=1740069418&srpvid=e35074ce6a510358&type=total&ucfs=1&#tab-main",
+                hotel_id = 'MORBAY1',
+                hotel_name = 'Morro Bay Beach Inn',
+                source_name = 'booking.com',
+                filename='output/morro_bay_inn.csv'
+                ))
+
+    
