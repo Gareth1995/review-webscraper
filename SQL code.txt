@@ -32,7 +32,12 @@ CREATE UNIQUE INDEX unique_review ON reviews (
     hotel_id,
     reviewer_name, 
     COALESCE(positive_review, ''), 
-    COALESCE(negative_review, '')
+    COALESCE(negative_review, ''), 
+    COALESCE(reviewer_check_in_date, '2000-01-01'), -- Default date for NULL values
+    COALESCE(review_created_date, '2000-01-01'),
+    COALESCE(length_nights_stay, -1),  -- Default -1 for NULL values
+    COALESCE(apartment_type, ''), 
+    COALESCE(review_feedback, '')
 );
 
 CREATE TABLE users (
@@ -72,12 +77,12 @@ CREATE TABLE locations (
 );
 #########################################################################################################################
 INSERT INTO users (user_name, email, hotel_id)
-VALUES ('Gareth Edwards', 'gareth.reeve50@gmail.com', 'KWA123');
+VALUES ('Gaz Edwards', 'gazzy.ps4@gmail.com', 'MORBAY1');
 
 
 INSERT INTO hotels (hotel_id, name)
 VALUES 
-    ('KWA123', 'Kwantu');
+    ('MORBAY1', 'Morro Bay Beach Inn');
 
 INSERT INTO sources (source_name)
 VALUES
