@@ -283,8 +283,10 @@ class BookingComScraper:
                 last_review_page_num = await page.locator('div.ab95b25344 > ol > li:last-child').text_content()
                 print('Last review page number:', last_review_page_num)
 
-                for i in range(1, int(last_review_page_num) + 1):
-                # for i in range(1, 3):
+                max_page = int(last_review_page_num) if int(last_review_page_num) <= 50 else 50
+                print('max page: ', max_page)
+                # for i in range(1, int(last_review_page_num) + 1):
+                for i in range(1, max_page):
                     
                     print(f'navigating to page {i}')
                     # click button where aria-label = i
@@ -475,11 +477,19 @@ if __name__ == '__main__':
     #             ))
 
     # pulling user reviews from booking.com for Morro Bay
-    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/us/morrobaybeachinn.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKx_9y9BsACAdICJDU4NmUxY2M5LWMxY2UtNDE0MS1iYjU4LWE1OTRiNTk4MzM5ONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&all_sr_blocks=1052579206_405616627_2_0_0&checkin=2025-03-01&checkout=2025-03-15&dest_id=10525792&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&highlighted_blocks=1052579206_405616627_2_0_0&hpos=1&matching_block_id=1052579206_405616627_2_0_0&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&sr_pri_blocks=1052579206_405616627_2_0_0__111700&srepoch=1740069418&srpvid=e35074ce6a510358&type=total&ucfs=1&#tab-main",
-                hotel_id = 'MORBAY1',
-                hotel_name = 'Morro Bay Beach Inn',
+    # review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/us/morrobaybeachinn.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKx_9y9BsACAdICJDU4NmUxY2M5LWMxY2UtNDE0MS1iYjU4LWE1OTRiNTk4MzM5ONgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&all_sr_blocks=1052579206_405616627_2_0_0&checkin=2025-03-01&checkout=2025-03-15&dest_id=10525792&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&highlighted_blocks=1052579206_405616627_2_0_0&hpos=1&matching_block_id=1052579206_405616627_2_0_0&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&sr_pri_blocks=1052579206_405616627_2_0_0__111700&srepoch=1740069418&srpvid=e35074ce6a510358&type=total&ucfs=1&#tab-main",
+    #             hotel_id = 'MORBAY1',
+    #             hotel_name = 'Morro Bay Beach Inn',
+    #             source_name = 'booking.com',
+    #             filename='output/morro_bay_inn.csv'
+    #             ))
+    
+    # Pulling user reviews from bookin.com from Southern Sun
+    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/southern-sun-waterfront.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKG6uW-BsACAdICJDMwMzYxYzJjLTE3YTktNDc3Zi1iZjE2LTdhY2E3NGNkMzkzZdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=43927&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1742304540&srpvid=e19b5ecb6917006e&type=total&ucfs=1&#tab-main",
+                hotel_id = 'SOUSUN123',
+                hotel_name = 'Southern Sun Cape Town',
                 source_name = 'booking.com',
-                filename='output/morro_bay_inn.csv'
+                filename='output/southern_sun_capetown_.csv'
                 ))
 
     
