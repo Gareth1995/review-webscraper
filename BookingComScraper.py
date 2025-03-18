@@ -485,11 +485,29 @@ if __name__ == '__main__':
     #             ))
     
     # Pulling user reviews from bookin.com from Southern Sun
-    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/southern-sun-waterfront.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKG6uW-BsACAdICJDMwMzYxYzJjLTE3YTktNDc3Zi1iZjE2LTdhY2E3NGNkMzkzZdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=43927&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1742304540&srpvid=e19b5ecb6917006e&type=total&ucfs=1&#tab-main",
-                hotel_id = 'SOUSUN123',
-                hotel_name = 'Southern Sun Cape Town',
+    # review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/southern-sun-waterfront.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKG6uW-BsACAdICJDMwMzYxYzJjLTE3YTktNDc3Zi1iZjE2LTdhY2E3NGNkMzkzZdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=43927&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1742304540&srpvid=e19b5ecb6917006e&type=total&ucfs=1&#tab-main",
+    #             hotel_id = 'SOUSUN123',
+    #             hotel_name = 'Southern Sun Cape Town',
+    #             source_name = 'booking.com',
+    #             filename='output/southern_sun_capetown_.csv'
+    #             ))
+
+    # scraping user reviews from the onyx cape town
+    # review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/the-onyx.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKG6uW-BsACAdICJDMwMzYxYzJjLTE3YTktNDc3Zi1iZjE2LTdhY2E3NGNkMzkzZdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=3812786&dest_type=hotel&dist=0&group_adults=2&group_children=0&hapos=1&hpos=1&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1742312514&srpvid=483d6e5e343e07ca&type=total&ucfs=1&#tab-main",
+    #             hotel_id = 'ONYX1',
+    #             hotel_name = 'The Onyx Cape Town',
+    #             source_name = 'booking.com',
+    #             filename='output/the_onyx_capetown.csv'
+    #             ))
+
+    review_df = asyncio.run(booking_com_scraper.scrape_hotel_reviews("https://www.booking.com/hotel/za/garden-court-sandton-city.html?aid=304142&label=gen173nr-1FCAEoggI46AdIM1gEaPsBiAEBmAExuAEXyAEM2AEB6AEB-AECiAIBqAIDuAKG6uW-BsACAdICJDMwMzYxYzJjLTE3YTktNDc3Zi1iZjE2LTdhY2E3NGNkMzkzZdgCBeACAQ&sid=989dc5e594027c7ff3b4d7505cacb436&dest_id=-1240261&dest_type=city&dist=0&group_adults=2&group_children=0&hapos=7&hpos=7&no_rooms=1&req_adults=2&req_children=0&room1=A%2CA&sb_price_type=total&sr_order=popularity&srepoch=1742320176&srpvid=6f0a6ea1d9640c1e&type=total&ucfs=1&",
+                hotel_id = 'GARCOUR1',
+                hotel_name = 'Garden Court Sandton City',
                 source_name = 'booking.com',
-                filename='output/southern_sun_capetown_.csv'
+                filename='output/garden_court_sandton.csv'
                 ))
+    
+
+
 
     
